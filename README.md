@@ -524,3 +524,329 @@ import java.util.{Date => UtilDate}
 import java.sql.{Date => SqlDate}
 ```
 * Using `_` to do `*` imports for a package
+
+# Functional Programming
+
+## What is a function?
+
+While everything may look like a function in Scala, the JVM forces it to be an object. Syntactic
+sugar hides the real implementation.
+
+* When using `adder` it looks like `adder(2, 3)`
+```scala
+  val adder: ((Int, Int) => Int) = new Function2[Int, Int, Int] {
+    override def apply(v1: Int, v2: Int): Int = v1 + v2
+  }
+```
+
+* Scala supports `Function1` through `Function22` traits that implement 1 to 22 parameter functions
+* Higher order functions receive functions as parameters or return functions
+* Functions that create other functions that can be called with different parameters are called `curried` functions
+```scala
+  multiple(3)(4)
+```
+
+## Anonymous Functions
+
+Compiler does its best to infer types to make code shorter and (theoretically) cleaner.
+
+Options with Scala for functional syntax
+
+1. Java like syntax
+2. Java8 like lambda syntax in Scala
+3. Syntactic sugar with inferred types
+4. Underscore used in place of parameters, scala will infer in many circumstances
+
+Limitations
+1. Multiple params = parameters in parenthesis
+2. Multiple uses of a single parameter = no `_`
+3. Parenthesis must be used for every function even with no parameters ex. `val pi = () => 3.1415`
+must be called `pi()` not `pi`
+4. Scala must either be given type of expression and infer parameter types for functions or the reverse. Basically
+either left hand side of the equation has types or right hand side does.
+
+```scala
+// Java like syntax
+  val doubler = new Function1[Int, Int] {
+    override def apply(x: Int) = x * 2
+  }
+
+  // Scala syntax
+  // Anonymous function also called Lambda
+  val doublerScala = (x: Int) => x * 2
+
+  // Infer the types to make it short
+  val doublerScalaShort: Int => Int = (x) => x * 2
+
+  // multiple parameters in a lambda?
+  val adder = (a: Int, b: Int) => a + b
+
+  val adderTyped: (Int, Int) => Int = (a: Int, b: Int) => a + b
+
+  // no parameters
+  val justDoSomething: () => Int = () => 3
+  // memory location of function
+  println(justDoSomething)
+
+  // function execution
+  println(justDoSomething())
+
+  // other syntactical style
+  val stringToInt = { (str: String) =>
+    str.toInt
+  }
+
+  // more syntactic sugar
+  val niceIncrementer: Int => Int = (x: Int) => x + 1
+  val niceIncShort: Int => Int = _ + 1
+
+  // Same as (a, b) => a + b
+  // but requires that types are absolutely clear
+  // second one won't work
+  val niceAdder: (Int, Int) => Int = _ + _
+//  val niceAdder = _ + _
+```
+
+## IMPORTANT Higher Order Functions and Curries
+
+### Higher order functions
+
+* Functions that take functions as parameters and/or return functions as results
+* We should prefer simplicity with higher order functions. Crazy
+function definitions are hard to read so instead wrap each higher order
+function with another higher order function if you can.
+```scala
+  // function that applies a function n times over a value x
+  // nTimes(f, n, x)
+  // nTimes(f, 3, x) = f( f( f(x) ) )
+
+  // This looks a whole lot like math because it is
+  def nTimes(f: Int => Int, n: Int, x: Int): Int = {
+    if (n <= 0) x
+    else nTimes(f, n - 1, f(x))
+  }
+
+  val plusOne = (x: Int) => x + 1
+  println(nTimes(plusOne, 10, 1))
+
+
+  // What if we could make these functions parameterizable?
+  // Well Scala gives us that via returning anonymous functions
+  def nTimesBetter(f: Int => Int, n: Int): (Int => Int) = {
+    if (n <= 0) (x: Int) => x
+    else (x: Int) => nTimes(f, n, x)
+  }
+
+  println(nTimesBetter(plusOne, 10)(1))w
+```
+
+
+### Curried Functions
+
+Curried functions are functions that return other functions. Basically
+function generators.
+
+* There is no reason a curried function (a function generator) cannot return another curried function (a function generator)
+* Scala provides syntactic sugar to define curried functions using methods with multiple parameter lists
+```scala
+  // functions with multiple parameter lists
+  // can act like curried functions without the syntax
+  // more syntactic sugar
+  def curriedFormatter(c: String)(x: Double): String = c.format(x)
+
+
+  // Why is this important?
+  // We just defined a function that returns functions (curried formatter) and that function generator
+  // can be customized to produce other functions (standardFormat, preciseFormat)
+  val standardFormat: (Double => String) = curriedFormatter("%4.2f")
+  val preciseFormat: (Double => String) = curriedFormatter("%10.8f")
+
+  println(standardFormat(Math.PI))
+  println(preciseFormat(Math.PI))
+```
+* However, a curried function generated from another curried function
+must specify the types it expects in Scala. The compiler cannot infer this.
+```scala
+  def curriedFormatter(c: String)(x: Double): String = c.format(x)
+  val standardFormat: (Double => String) = curriedFormatter("%4.2f")
+
+// One limitation
+// You must specify the types to have curried functions working
+// This will break
+// val standardFormat = curriedFormatter("%4.2f")
+```
+
+## For comprehensions in Scala
+
+* Map, flatmap, and foreach are essentially for comprehensions
+* We have syntactic sugar to support for comprehensions in a readable format
+  * Double nesting is denoted by arrows where precedence goes to first traversable listed
+  * `yield` keyword is the result of the loop
+```scala
+  val forCombinations = for {
+    n <- numbers
+    c <- chars
+    color <- colors
+  } yield "" + c + n + "-" + colors
+```
+* To filter out add a "guard"
+```scala
+  // To filter out specific sections
+  val forCombinationsFilter = for {
+    n <- numbers if n % 2 == 0
+    c <- chars
+    color <- colors
+  } yield "" + c + n + "-" + colors
+  println(forCombinationsFilter)
+```
+* For side effects just end with the statement causing a side effect
+```scala
+
+  // If you want side effects it handles that too
+  for {
+    n <- numbers
+  } println(n)
+```
+
+## Collections
+
+### Hierarchy
+
+* Traversable
+* Iterable
+* Sets, Sequences, and Maps
+* Sequence -> indexed sequence, linear sequence
+
+* Mutable sequences are found in `scala.collections.mutable` but should be avoided if possible
+
+### Standard functionality
+
+* Map: map, flatMap, collect
+* Conversions: toArray, toList, toSeq
+* size info
+* tests: exists, forall
+* folds: foldLeft, foldRight, reduceLeft, reduceRight
+* retrieval: head, find, tail
+
+### Sequences
+
+General super class for ordered data structures that can be indexed
+
+* General interface for data structures with a well defined order that can be indexed
+* Support: Grouping, sorting, zipping, searching, slicing, appending
+
+#### List
+
+* LinearSeq immutable
+* head, tail, isEmpty are fast
+* other operations are O(n)
+
+Lists are sealed so extending them really isn't possible.
+
+#### Arrays
+
+* Can be constructed with predefined length
+* Can be updated in place (mutated)
+* indexing is fast
+* interop with Java arrays
+
+Can be initialized with zero or null for all values by default.
+
+#### Vectors
+
+* Default implementation for immutable sequences
+* Effectively constant indexed read and write O(log32(n))
+* Fast addition and prepend
+* Implemented as a fixed branched trie (branch factor 32)
+* Good performance for large sizes
+
+## Tuples and Maps
+
+
+### Tuples
+* Group things
+* At most 32 members almost exactly like functional types
+```scala
+val aTuple = (2, "hello, world")
+val aTuple2 = new Tuple(2, "hello, world")
+```
+
+### Maps
+
+* Input is tuples (key, value)
+* Declared like tuples using new or the apply method
+* Can be filtered by entries or by keys
+* Can be converted to and from lists of tuples
+
+## Options
+
+The possible absence of a value.
+
+The correct way to use an optional is part of a chain of functional calls NOT individual calls. For example:
+
+Wrong (imperative use)
+```scala
+  val host = config.get("host")
+  val port = config.get("port")
+  var connection: Option[Connection]
+  if (host.isDefined && port.isDefined) {
+    connection = Connection.apply(h, p)
+  } else {
+    connection = None
+  }
+
+  var connectionStatus: Option[String] = None
+  if (connection.isDefined) {
+    connectionStatus = Option(connection.get.connect)
+  }
+  println(connectionStatus)
+```
+
+Right way (functional)
+```scala
+  val host = config.get("host")
+  val port = config.get("port")
+  val connection = host.flatMap(h => port.flatMap(p => Connection.apply(h,p)))
+  val connectionStatus = connection.map(c => c.connect)
+```
+
+* Not a collection
+* Examples: `map.get("key")` or `list.head`
+* **Options implement foreach, filter, map, and flatMap**. This means options can be used in for comprehensions
+```scala
+  val forConnectionStatus = for {
+    // Given a successfully retrieved host
+    host <- config.get("host")
+    // Given a successfully retrieved port
+    port <- config.get("port")
+    // Given a successfully formed connection
+    connection <- Connection(host, port)
+    // Return the connection status
+  } yield connection.connect
+  println(forConnectionStatus)
+```
+
+
+## Try, Failure, Success
+
+Functional way of handling try catch logic for exceptions.
+
+Data types:
+* Success: if statement succeeds ex `Success(3)`
+* Failure: if statement threw exception `Failure(new RuntimeException())`
+* Try super type of Failure and Success
+
+* Utility functions for isSuccess, isFailure, orElse are implemented like with Option
+```scala
+  def betterUnsafeMethod(): Try[String] = new Failure(new RuntimeException)
+  def betterBackupMethod(): Try[String] = Success("A valid result")
+  println(betterUnsafeMethod() orElse betterBackupMethod())
+```
+
+* **Try, Failure, and Success implement map, flatMap, and foreach so for comprehensions work with Try**
+```scala
+for {
+  con <- Try(HttpService.getConnection(hostname, port))
+  page <- Try(con.get("some_url"))
+} renderHTML(page)
+```
