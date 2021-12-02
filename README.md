@@ -850,3 +850,116 @@ for {
   page <- Try(con.get("some_url"))
 } renderHTML(page)
 ```
+
+# Pattern Matching
+
+## The Basics
+
+* Cases are matched in order
+* Like switch provides default case functionality
+* If no cases match you get a MatchError
+* The type returned is the lowest common denominator among the return types of the cases
+* Works well with case classes
+* Works even better with sealed classes because compiler will warn you if you miss a case
+
+```scala
+  def readable(expr: Expr): String = {
+    expr match {
+      case Number(x) => s"$x"
+      case Sum(e1, e2) => s"(${readable(e1)} + ${readable(e2)})"
+      case Prod(e1, e2) => s"(${readable(e1)} * ${readable(e2)})"
+    }
+  }
+```
+
+## All the types of patterns
+
+Things you can match with patterns:
+
+1. Constants
+2. Match anything with `_` for default case
+3. Tuples - exact tuples, nested tuples, tuples with wildcards
+4. Case classes - constructor matching
+5. Lists - exact lists, nested lists, lists with wildcards, list with infix notations
+6. Type specifiers - list of type int `List[Int]`
+
+Features of patterns that make them more powerful:
+
+1. Nested patterns
+```scala
+  val nestedTuple = (1, (2, 3))
+  val matchANestedTuple = nestedTuple match {
+    case (_, (2, v)) =>
+  }
+```
+2. Naming variables in patterns
+```scala
+  val matchAVariable = x match {
+    case something => s"I've found $something"
+  }
+```
+3. Naming patterns themselves
+```scala
+  val nameBindingMatch = aList match {
+    case nonEmpty @ Cons(_, _) => // makes you use the name later
+    case Cons(1, rest @ Cons(2, _)) => // name binding works with nested patterns
+  }
+```
+4. Multi patterns, combining patterns with `|` and `&&`
+```scala
+  val multipattern = aList match {
+    case Empty | Cons(0, _) => // compound pattern
+  }
+```
+5. Filter patterns use if guards to add additional conditions to patterns
+```scala
+  val secondElementSpecial = aList match {
+    case Cons(_, Cons(specialElement, _)) if specialElement % 2 == 0 =>
+  }
+```
+
+## Patterns Everywhere
+
+Scala uses patterns for a ton of syntactic sugar
+
+1. try/catch logic
+```scala
+  try {
+
+  } catch {
+    case e: RuntimeException => "runtime"
+    case npe: NullPointerException => "npe"
+    case _ => "something else"
+  }
+```
+2. For comprehensions
+```scala
+  val tuples = List((1,2), (3, 4))
+  val filterTuples = for {
+    (first, second) <- tuples
+  } yield first * second
+```
+3. Name binding
+```scala
+  val tuple = (1, 2, 3)
+  val (a, b, c) = tuple
+
+  val head :: tail = list
+  println(head)
+  println(tail)
+```
+4. Partial functions
+```scala
+  val mappedList = list.map {
+    case v if v % 2 == 0 => s"$v is even"
+    case 1 => "the one"
+    case _ => "something else"
+  }
+
+  // Syntactically same as above
+  val mappedList2 = list.map(x => x match {
+    case v if v % 2 == 0 => s"$v is even"
+    case 1 => "the one"
+    case _ => "something else"
+  })
+```
